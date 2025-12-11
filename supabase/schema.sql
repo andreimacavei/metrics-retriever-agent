@@ -1,5 +1,27 @@
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS subscriptions CASCADE;
+DROP TABLE IF EXISTS plans CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS reports CASCADE;
+DROP TABLE IF EXISTS folders CASCADE;
+
+-- Drop existing enums if they exist
+DROP TYPE IF EXISTS plan_name CASCADE;
+DROP TYPE IF EXISTS billing_cycle CASCADE;
+DROP TYPE IF EXISTS subscription_status CASCADE;
+DROP TYPE IF EXISTS action CASCADE;
+DROP TYPE IF EXISTS feature CASCADE;
+
+-- Create enums
+CREATE TYPE plan_name AS ENUM ('trial', 'starter', 'pro', 'enterprise');
+CREATE TYPE billing_cycle AS ENUM ('monthly', 'yearly');
+CREATE TYPE subscription_status AS ENUM ('active', 'canceled', 'past_due');
+CREATE TYPE action AS ENUM ('login', 'logout', 'feature_used', 'upgrade', 'downgrade', 'billing_failed');
+CREATE TYPE feature AS ENUM ('dashboard', 'reports');
+
 -- Create folders table
-CREATE TABLE IF NOT EXISTS folders (
+CREATE TABLE folders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -9,7 +31,7 @@ CREATE TABLE IF NOT EXISTS folders (
 );
 
 -- Create reports table
-CREATE TABLE IF NOT EXISTS reports (
+CREATE TABLE reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   folder_id UUID REFERENCES folders(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -18,40 +40,48 @@ CREATE TABLE IF NOT EXISTS reports (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create analytics tables for testing
-CREATE TABLE IF NOT EXISTS users (
+-- Create users table
+CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  email TEXT NOT NULL,
+  company_size INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS events (
+-- Create plans table
+CREATE TABLE plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  event_name TEXT NOT NULL,
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  properties JSONB DEFAULT '{}'::jsonb
+  name plan_name NOT NULL,
+  price NUMERIC(10, 2) NOT NULL,
+  billing_cycle billing_cycle NOT NULL
 );
 
--- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_reports_folder_id ON reports(folder_id);
-CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
-CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
-CREATE INDEX IF NOT EXISTS idx_events_event_name ON events(event_name);
-CREATE INDEX IF NOT EXISTS idx_users_last_seen_at ON users(last_seen_at);
+-- Create subscriptions table
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+  status subscription_status NOT NULL,
+  started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  ends_at TIMESTAMP WITH TIME ZONE,
+  canceled_at TIMESTAMP WITH TIME ZONE
+);
 
--- Insert sample data for testing
-INSERT INTO users (id, created_at, last_seen_at)
-SELECT
-  gen_random_uuid(),
-  NOW() - (random() * INTERVAL '30 days'),
-  NOW() - (random() * INTERVAL '7 days')
-FROM generate_series(1, 100);
+-- Create events table
+CREATE TABLE events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action action NOT NULL,
+  feature feature,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-INSERT INTO events (user_id, event_name, timestamp, properties)
-SELECT
-  (SELECT id FROM users ORDER BY random() LIMIT 1),
-  (ARRAY['page_view', 'button_click', 'form_submit', 'purchase', 'login'])[floor(random() * 5 + 1)],
-  NOW() - (random() * INTERVAL '30 days'),
-  jsonb_build_object('page', '/home', 'duration', floor(random() * 300))
-FROM generate_series(1, 1000);
+-- Create indexes
+CREATE INDEX idx_reports_folder_id ON reports(folder_id);
+CREATE INDEX idx_users_created_at ON users(created_at);
+CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX idx_subscriptions_plan_id ON subscriptions(plan_id);
+CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX idx_events_user_id ON events(user_id);
+CREATE INDEX idx_events_timestamp ON events(timestamp);
+CREATE INDEX idx_events_action ON events(action);
