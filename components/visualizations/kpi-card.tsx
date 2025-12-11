@@ -1,4 +1,5 @@
 import { KPIComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { Minus } from 'lucide-react';
 
 interface KPICardProps {
@@ -38,6 +39,8 @@ const formatValue = (value: number | string | undefined): string => {
 };
 
 export function KPICard({ component }: KPICardProps) {
+  const valueColor = component.color ? getChartColor(component.color) : undefined;
+  
   return (
     <div className="h-full flex flex-col p-5">
       {/* Header */}
@@ -52,7 +55,10 @@ export function KPICard({ component }: KPICardProps) {
       
       {/* Value */}
       <div className="flex-1 flex items-center">
-        <span className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
+        <span 
+          className="text-3xl lg:text-4xl font-bold tracking-tight"
+          style={{ color: valueColor || 'inherit' }}
+        >
           {formatValue(component.value)}
         </span>
       </div>

@@ -1,19 +1,12 @@
 'use client';
 
 import { PieChartComponent } from '@/lib/types';
+import { PIE_COLORS } from '@/lib/chart-colors';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface PieChartVisualizationProps {
   component: PieChartComponent;
 }
-
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 export function PieChartVisualization({ component }: PieChartVisualizationProps) {
   const data = component.data || [];
@@ -32,13 +25,13 @@ export function PieChartVisualization({ component }: PieChartVisualizationProps)
                 labelLine={false}
                 outerRadius="70%"
                 fill="#8884d8"
-                dataKey={component.valueKey}
-                nameKey={component.nameKey}
+                dataKey={component.valueKey || 'value'}
+                nameKey={component.nameKey || 'name'}
               >
-                {data.map((entry, index) => (
+                {data.map((_, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
+                    fill={PIE_COLORS[index % PIE_COLORS.length]} 
                     stroke="hsl(var(--background))"
                     strokeWidth={2}
                   />

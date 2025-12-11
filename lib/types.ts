@@ -37,12 +37,15 @@ export interface ComponentLayout {
   h: number;
 }
 
+export type ChartColor = 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'teal' | 'red' | 'yellow';
+
 export interface BaseComponent {
   type: 'kpi' | 'line_chart' | 'bar_chart' | 'table' | 'metrics_grid' | 'pie_chart' | 'area_chart' | 'donut_chart' | 'scatter_chart' | 'horizontal_bar_chart';
   title: string;
   dateRange?: DateRange;
   filters?: Filter[];
   layout?: ComponentLayout;
+  color?: ChartColor;
 }
 
 export interface KPIComponent extends BaseComponent {

@@ -1,6 +1,7 @@
 'use client';
 
 import { LineChartComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface LineChartVisualizationProps {
@@ -9,6 +10,7 @@ interface LineChartVisualizationProps {
 
 export function LineChartVisualization({ component }: LineChartVisualizationProps) {
   const data = component.data || [];
+  const chartColor = getChartColor(component.color, 'blue');
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -19,7 +21,7 @@ export function LineChartVisualization({ component }: LineChartVisualizationProp
             <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
-                dataKey={component.xAxis} 
+                dataKey={component.xAxis || 'date'} 
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={{ stroke: 'hsl(var(--border))' }}
@@ -41,10 +43,10 @@ export function LineChartVisualization({ component }: LineChartVisualizationProp
               />
               <Line
                 type="monotone"
-                dataKey={component.yAxis}
-                stroke="hsl(var(--chart-1))"
+                dataKey={component.yAxis || 'value'}
+                stroke={chartColor}
                 strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-1))', strokeWidth: 0, r: 3 }}
+                dot={{ fill: chartColor, strokeWidth: 0, r: 3 }}
                 activeDot={{ r: 5, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
               />
             </LineChart>

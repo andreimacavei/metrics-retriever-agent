@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChartComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface BarChartVisualizationProps {
@@ -9,6 +10,7 @@ interface BarChartVisualizationProps {
 
 export function BarChartVisualization({ component }: BarChartVisualizationProps) {
   const data = component.data || [];
+  const chartColor = getChartColor(component.color, 'blue');
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -19,7 +21,7 @@ export function BarChartVisualization({ component }: BarChartVisualizationProps)
             <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
-                dataKey={component.xAxis} 
+                dataKey={component.xAxis || 'label'} 
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={{ stroke: 'hsl(var(--border))' }}
@@ -41,8 +43,8 @@ export function BarChartVisualization({ component }: BarChartVisualizationProps)
                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
               />
               <Bar 
-                dataKey={component.yAxis} 
-                fill="hsl(var(--chart-1))" 
+                dataKey={component.yAxis || 'value'} 
+                fill={chartColor} 
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>

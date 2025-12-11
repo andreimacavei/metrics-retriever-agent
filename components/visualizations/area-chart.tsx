@@ -1,6 +1,7 @@
 'use client';
 
 import { AreaChartComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useId } from 'react';
 
@@ -11,6 +12,7 @@ interface AreaChartVisualizationProps {
 export function AreaChartVisualization({ component }: AreaChartVisualizationProps) {
   const data = component.data || [];
   const gradientId = useId();
+  const chartColor = getChartColor(component.color, 'teal');
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -21,13 +23,13 @@ export function AreaChartVisualization({ component }: AreaChartVisualizationProp
             <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={chartColor} stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
-                dataKey={component.xAxis || 'name'} 
+                dataKey={component.xAxis || 'date'} 
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={{ stroke: 'hsl(var(--border))' }}
@@ -50,7 +52,7 @@ export function AreaChartVisualization({ component }: AreaChartVisualizationProp
               <Area
                 type="monotone"
                 dataKey={component.yAxis || 'value'}
-                stroke="hsl(var(--chart-1))"
+                stroke={chartColor}
                 strokeWidth={2}
                 fillOpacity={1}
                 fill={`url(#${gradientId})`}

@@ -1,19 +1,12 @@
 'use client';
 
 import { DonutChartComponent } from '@/lib/types';
+import { PIE_COLORS } from '@/lib/chart-colors';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface DonutChartVisualizationProps {
   component: DonutChartComponent;
 }
-
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 export function DonutChartVisualization({ component }: DonutChartVisualizationProps) {
   const data = component.data || [];
@@ -33,13 +26,13 @@ export function DonutChartVisualization({ component }: DonutChartVisualizationPr
                 outerRadius="70%"
                 innerRadius="45%"
                 fill="#8884d8"
-                dataKey={component.valueKey}
-                nameKey={component.nameKey}
+                dataKey={component.valueKey || 'value'}
+                nameKey={component.nameKey || 'name'}
               >
-                {data.map((entry, index) => (
+                {data.map((_, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
+                    fill={PIE_COLORS[index % PIE_COLORS.length]} 
                     stroke="hsl(var(--background))"
                     strokeWidth={2}
                   />

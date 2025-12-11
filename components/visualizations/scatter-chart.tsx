@@ -1,6 +1,7 @@
 'use client';
 
 import { ScatterChartComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ScatterChartVisualizationProps {
@@ -9,6 +10,7 @@ interface ScatterChartVisualizationProps {
 
 export function ScatterChartVisualization({ component }: ScatterChartVisualizationProps) {
   const data = component.data || [];
+  const chartColor = getChartColor(component.color, 'orange');
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -19,15 +21,15 @@ export function ScatterChartVisualization({ component }: ScatterChartVisualizati
             <ScatterChart margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
-                dataKey={component.xAxis} 
-                name={component.xAxis} 
+                dataKey={component.xAxis || 'x'} 
+                name={component.xAxis || 'x'} 
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={{ stroke: 'hsl(var(--border))' }}
               />
               <YAxis 
-                dataKey={component.yAxis} 
-                name={component.yAxis} 
+                dataKey={component.yAxis || 'y'} 
+                name={component.yAxis || 'y'} 
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={{ stroke: 'hsl(var(--border))' }}
@@ -45,7 +47,7 @@ export function ScatterChartVisualization({ component }: ScatterChartVisualizati
               <Scatter 
                 name="Data" 
                 data={data} 
-                fill="hsl(var(--chart-1))"
+                fill={chartColor}
                 shape="circle"
               />
             </ScatterChart>

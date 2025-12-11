@@ -1,6 +1,7 @@
 'use client';
 
 import { HorizontalBarChartComponent } from '@/lib/types';
+import { getChartColor } from '@/lib/chart-colors';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface HorizontalBarChartVisualizationProps {
@@ -9,6 +10,7 @@ interface HorizontalBarChartVisualizationProps {
 
 export function HorizontalBarChartVisualization({ component }: HorizontalBarChartVisualizationProps) {
   const data = component.data || [];
+  const chartColor = getChartColor(component.color, 'purple');
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -25,7 +27,7 @@ export function HorizontalBarChartVisualization({ component }: HorizontalBarChar
                 tickLine={{ stroke: 'hsl(var(--border))' }}
               />
               <YAxis 
-                dataKey={component.yAxis} 
+                dataKey={component.yAxis || 'label'} 
                 type="category" 
                 width={80}
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
@@ -44,8 +46,8 @@ export function HorizontalBarChartVisualization({ component }: HorizontalBarChar
                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
               />
               <Bar 
-                dataKey={component.xAxis} 
-                fill="hsl(var(--chart-1))" 
+                dataKey={component.xAxis || 'value'} 
+                fill={chartColor} 
                 radius={[0, 4, 4, 0]}
               />
             </BarChart>
