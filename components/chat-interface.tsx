@@ -294,6 +294,12 @@ export function ChatInterface({ onReportGenerated }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('voice-tts', { detail: { text: 'Now generating the report' } })
+        );
+      }
+
       const response = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,6 +317,15 @@ export function ChatInterface({ onReportGenerated }: ChatInterfaceProps) {
 
       if (data.config) {
         onReportGenerated(data.reportName, data.config);
+      }
+
+      if (typeof window !== 'undefined') {
+        const doneText = data?.reportName
+          ? `Report ${data.reportName} is ready`
+          : 'Your report is ready';
+        window.dispatchEvent(
+          new CustomEvent('voice-tts', { detail: { text: doneText } })
+        );
       }
     } catch {
       const errorMessage: ChatMessage = {
