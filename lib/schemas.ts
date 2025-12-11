@@ -19,17 +19,6 @@ const customDateRangeSchema = z.object({
 
 const dateRangeSchema = z.union([predefinedDateRangeSchema, customDateRangeSchema]);
 
-const groupBySchema = z.enum(['day', 'week', 'month', 'hour']);
-
-const metricSchema = z.enum([
-  'count_distinct_users',
-  'count_events',
-  'avg_session_duration',
-  'daily_active_users',
-  'weekly_active_users',
-  'monthly_active_users'
-]);
-
 const filterSchema = z.object({
   field: z.string(),
   operator: z.string(),
@@ -48,65 +37,56 @@ const baseComponentSchema = z.object({
 
 export const kpiComponentSchema = baseComponentSchema.extend({
   type: z.literal('kpi'),
-  metric: metricSchema
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const lineChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('line_chart'),
-  xAxis: z.string().min(1, 'X-axis is required'),
-  yAxis: z.string().min(1, 'Y-axis is required'),
-  groupBy: groupBySchema.optional()
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const barChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('bar_chart'),
-  xAxis: z.string().min(1, 'X-axis is required'),
-  yAxis: z.string().min(1, 'Y-axis is required'),
-  groupBy: groupBySchema.optional()
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const tableComponentSchema = baseComponentSchema.extend({
   type: z.literal('table'),
-  columns: z.array(z.string().min(1)).min(1, 'At least one column is required')
+  columns: z.array(z.string().min(1)).min(1, 'At least one column is required'),
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const metricsGridComponentSchema = baseComponentSchema.extend({
   type: z.literal('metrics_grid'),
   metrics: z.array(z.object({
     label: z.string().min(1, 'Label is required'),
-    metric: metricSchema
+    query: z.string().min(1, 'SQL query is required')
   })).min(1, 'At least one metric is required')
 });
 
 export const pieChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('pie_chart'),
-  nameKey: z.string().min(1, 'Name key is required'),
-  valueKey: z.string().min(1, 'Value key is required')
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const areaChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('area_chart'),
-  xAxis: z.string().min(1, 'X-axis is required'),
-  yAxis: z.string().min(1, 'Y-axis is required'),
-  groupBy: groupBySchema.optional()
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const donutChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('donut_chart'),
-  nameKey: z.string().min(1, 'Name key is required'),
-  valueKey: z.string().min(1, 'Value key is required')
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const scatterChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('scatter_chart'),
-  xAxis: z.string().min(1, 'X-axis is required'),
-  yAxis: z.string().min(1, 'Y-axis is required')
+  query: z.string().min(1, 'SQL query is required')
 });
 
 export const horizontalBarChartComponentSchema = baseComponentSchema.extend({
   type: z.literal('horizontal_bar_chart'),
-  xAxis: z.string().min(1, 'X-axis is required'),
-  yAxis: z.string().min(1, 'Y-axis is required')
+  query: z.string().min(1, 'SQL query is required')
 });
 
 // ========================================
@@ -183,115 +163,87 @@ export const ANTHROPIC_JSON_SCHEMA = {
         oneOf: [
           {
             type: "object",
-            required: ["type", "title", "metric"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["kpi"] },
               title: { type: "string" },
-              metric: {
-                type: "string",
-                enum: [
-                  "count_distinct_users",
-                  "count_events",
-                  "avg_session_duration",
-                  "daily_active_users",
-                  "weekly_active_users",
-                  "monthly_active_users"
-                ]
-              },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns a single row with a 'value' column" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "xAxis", "yAxis"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["line_chart"] },
               title: { type: "string" },
-              xAxis: { type: "string" },
-              yAxis: { type: "string" },
-              groupBy: { type: "string", enum: ["day", "week", "month", "hour"] },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "xAxis", "yAxis"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["bar_chart"] },
               title: { type: "string" },
-              xAxis: { type: "string" },
-              yAxis: { type: "string" },
-              groupBy: { type: "string", enum: ["day", "week", "month", "hour"] },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "xAxis", "yAxis"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["area_chart"] },
               title: { type: "string" },
-              xAxis: { type: "string" },
-              yAxis: { type: "string" },
-              groupBy: { type: "string", enum: ["day", "week", "month", "hour"] },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "xAxis", "yAxis"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["scatter_chart"] },
               title: { type: "string" },
-              xAxis: { type: "string" },
-              yAxis: { type: "string" },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'x' and 'y' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "xAxis", "yAxis"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["horizontal_bar_chart"] },
               title: { type: "string" },
-              xAxis: { type: "string" },
-              yAxis: { type: "string" },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "nameKey", "valueKey"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["pie_chart"] },
               title: { type: "string" },
-              nameKey: { type: "string" },
-              valueKey: { type: "string" },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'name' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "nameKey", "valueKey"],
+            required: ["type", "title", "query"],
             properties: {
               type: { type: "string", enum: ["donut_chart"] },
               title: { type: "string" },
-              nameKey: { type: "string" },
-              valueKey: { type: "string" },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with 'name' and 'value' columns" }
             },
             additionalProperties: false
           },
           {
             type: "object",
-            required: ["type", "title", "columns"],
+            required: ["type", "title", "columns", "query"],
             properties: {
               type: { type: "string", enum: ["table"] },
               title: { type: "string" },
@@ -300,7 +252,7 @@ export const ANTHROPIC_JSON_SCHEMA = {
                 items: { type: "string" },
                 minItems: 1
               },
-              dateRange: dateRangeJsonSchema
+              query: { type: "string", description: "SQL query that returns rows with columns matching the columns array" }
             },
             additionalProperties: false
           },
@@ -314,26 +266,15 @@ export const ANTHROPIC_JSON_SCHEMA = {
                 type: "array",
                 items: {
                   type: "object",
-                  required: ["label", "metric"],
+                  required: ["label", "query"],
                   properties: {
                     label: { type: "string" },
-                    metric: {
-                      type: "string",
-                      enum: [
-                        "count_distinct_users",
-                        "count_events",
-                        "avg_session_duration",
-                        "daily_active_users",
-                        "weekly_active_users",
-                        "monthly_active_users"
-                      ]
-                    }
+                    query: { type: "string", description: "SQL query that returns a single row with a 'value' column" }
                   },
                   additionalProperties: false
                 },
                 minItems: 1
-              },
-              dateRange: dateRangeJsonSchema
+              }
             },
             additionalProperties: false
           }

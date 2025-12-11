@@ -2,82 +2,68 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { reportConfigSchema, ANTHROPIC_JSON_SCHEMA } from '@/lib/schemas';
 import { z } from 'zod';
+import { getSchemaForPrompt } from '@/lib/schema-parser';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const SYSTEM_PROMPT_BASE = `You are an analytics report configuration generator. Your job is to convert user requests into JSON configurations for predefined analytics components.
+const SYSTEM_PROMPT_BASE = `You are an analytics report configuration generator. Your job is to convert user requests into JSON configurations with SQL queries for analytics components.
 
 Current date: {{NOW}}
 Use this date to calculate relative date ranges and understand time-based requests.
 
-Available components:
-1. "kpi" - Single metric display card showing one key metric value prominently
-   - Use for: Single important numbers like total users, revenue, conversion rate
-   - Fields: type, title, metric, dateRange
-   - Example: "Total Active Users: 1,234"
+{{SCHEMA}}
 
-2. "line_chart" - Time-series line graph visualization
-   - Use for: Trends over time, showing progression and patterns
-   - Fields: type, title, xAxis, yAxis, dateRange, groupBy
-   - Example: Daily user signups over the last 30 days
+IMPORTANT: You must generate a valid PostgreSQL SQL query for each component. The query should return data in the correct format for each component type.
 
-3. "bar_chart" - Vertical bar chart for categorical comparison
-   - Use for: Comparing values across different categories or time periods
-   - Fields: type, title, xAxis, yAxis, dateRange, groupBy
-   - Example: Event counts by type, monthly revenue comparison
+Available components and their required SQL output format:
 
-4. "table" - Tabular data display with rows and columns
-   - Use for: Detailed data with multiple attributes, lists of items
-   - Fields: type, title, columns, dateRange
-   - Example: Top 10 users with their activity metrics
+1. "kpi" - Single metric display card
+   - SQL must return: A single row with a "value" column
+   - Example SQL: SELECT COUNT(DISTINCT id) as value FROM users WHERE created_at >= '2024-01-01'
 
-5. "metrics_grid" - Grid of multiple KPI cards displayed together
-   - Use for: Dashboard overview with several key metrics at once
-   - Fields: type, title, metrics (array of {label, metric})
-   - Example: Overview showing DAU, WAU, MAU, and conversion rate
+2. "line_chart" - Time-series line graph
+   - SQL must return: Rows with "date" and "value" columns, ordered by date
+   - Example SQL: SELECT DATE(created_at) as date, COUNT(*) as value FROM users WHERE created_at >= '2024-01-01' GROUP BY DATE(created_at) ORDER BY date
 
-6. "pie_chart" - Circular chart showing parts of a whole with percentages
-   - Use for: Distribution and composition, showing proportions
-   - Fields: type, title, nameKey, valueKey, dateRange
-   - Example: User distribution by country, revenue by product category
+3. "bar_chart" - Vertical bar chart
+   - SQL must return: Rows with "label" and "value" columns
+   - Example SQL: SELECT action as label, COUNT(*) as value FROM events GROUP BY action ORDER BY value DESC
 
-7. "area_chart" - Filled area chart showing volume over time
-   - Use for: Cumulative values, showing magnitude and trends together
-   - Fields: type, title, xAxis, yAxis, dateRange, groupBy
-   - Example: Total revenue accumulated over time, page views trend
+4. "table" - Tabular data display
+   - SQL must return: Rows with columns matching the "columns" array
+   - Example SQL: SELECT email, company_size, created_at FROM users ORDER BY created_at DESC LIMIT 100
 
-8. "donut_chart" - Ring-shaped chart (pie chart with center hole) showing proportions
-   - Use for: Similar to pie chart but more modern, showing parts with percentages
-   - Fields: type, title, nameKey, valueKey, dateRange
-   - Example: Traffic sources breakdown, user type distribution
+5. "metrics_grid" - Grid of multiple KPI cards
+   - Each metric needs its own SQL query in the "metrics" array
+   - Each SQL must return: A single row with a "value" column
 
-9. "scatter_chart" - Scatter plot showing relationship between two variables
-   - Use for: Correlation analysis, identifying patterns between metrics
-   - Fields: type, title, xAxis, yAxis, dateRange
-   - Example: Session duration vs bounce rate, user age vs purchase amount
+6. "pie_chart" / "donut_chart" - Circular charts showing proportions
+   - SQL must return: Rows with "name" and "value" columns
+   - Example SQL: SELECT action as name, COUNT(*) as value FROM events GROUP BY action
 
-10. "horizontal_bar_chart" - Horizontal bars for category comparison
-    - Use for: Ranking, comparing many categories (better for long labels)
-    - Fields: type, title, xAxis, yAxis, dateRange
-    - Example: Top 10 pages by views, products ranked by sales
+7. "area_chart" - Filled area chart
+   - SQL must return: Rows with "date" and "value" columns, ordered by date
+   - Same format as line_chart
 
-Available metrics:
-- count_distinct_users: Count unique users
-- count_events: Count total events
-- avg_session_duration: Average session length
-- daily_active_users: Daily active users
-- weekly_active_users: Weekly active users
-- monthly_active_users: Monthly active users
+8. "scatter_chart" - Scatter plot
+   - SQL must return: Rows with "x" and "y" columns
+   - Example SQL: SELECT company_size as x, COUNT(*) as y FROM users GROUP BY company_size
 
-Date ranges:
-You can use either predefined ranges or custom date ranges:
-- Predefined: last_7_days, last_30_days, last_90_days, this_month, last_month
-- Custom: { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } (e.g., { "start": "2024-01-01", "end": "2024-01-31" })
+9. "horizontal_bar_chart" - Horizontal bars
+   - SQL must return: Rows with "label" and "value" columns
+   - Same format as bar_chart
 
-Group by options:
-- day, week, month, hour
+SQL Query Guidelines:
+- Use only SELECT statements (no INSERT, UPDATE, DELETE, etc.)
+- Reference only tables and columns from the schema above
+- Use appropriate date filtering based on the user's request
+- Use proper PostgreSQL syntax
+- Always alias columns to match the expected output format (value, date, label, name, x, y)
+- For date grouping, use DATE(), DATE_TRUNC('week', ...), DATE_TRUNC('month', ...), etc.
+- Include ORDER BY for time-series data
+- Use LIMIT for table queries to prevent too much data
 
 You must respond with ONLY valid JSON in this format:
 {
@@ -86,6 +72,7 @@ You must respond with ONLY valid JSON in this format:
     {
       "type": "component_type",
       "title": "Component Title",
+      "query": "SELECT ... FROM ... WHERE ...",
       // other fields based on component type
     }
   ]
@@ -101,16 +88,12 @@ Response:
     {
       "type": "kpi",
       "title": "Total Active Users",
-      "metric": "count_distinct_users",
-      "dateRange": "last_7_days"
+      "query": "SELECT COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'"
     },
     {
       "type": "line_chart",
       "title": "DAU Trend",
-      "xAxis": "date",
-      "yAxis": "count_distinct_users",
-      "dateRange": "last_7_days",
-      "groupBy": "day"
+      "query": "SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(timestamp) ORDER BY date"
     }
   ]
 }
@@ -123,69 +106,61 @@ Response:
     {
       "type": "pie_chart",
       "title": "Events by Type",
-      "nameKey": "event_name",
-      "valueKey": "count",
-      "dateRange": "last_30_days"
+      "query": "SELECT action as name, COUNT(*) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '30 days' GROUP BY action"
     }
   ]
 }
 
-User: "Compare users across segments"
+User: "Show me user signups by company size"
 Response:
 {
-  "reportName": "User Segment Analysis",
+  "reportName": "User Signups by Company Size",
   "components": [
     {
-      "type": "donut_chart",
-      "title": "User Segments",
-      "nameKey": "segment",
-      "valueKey": "users",
-      "dateRange": "last_30_days"
-    },
-    {
-      "type": "horizontal_bar_chart",
-      "title": "Segment Rankings",
-      "xAxis": "count",
-      "yAxis": "segment",
-      "dateRange": "last_30_days"
+      "type": "bar_chart",
+      "title": "Users by Company Size",
+      "query": "SELECT CASE WHEN company_size < 10 THEN 'Small' WHEN company_size < 100 THEN 'Medium' ELSE 'Large' END as label, COUNT(*) as value FROM users GROUP BY label ORDER BY value DESC"
     }
   ]
 }
 
-User: "Show me Q1 2024 performance"
+User: "Show me recent users"
 Response:
 {
-  "reportName": "Q1 2024 Performance",
+  "reportName": "Recent Users",
   "components": [
     {
-      "type": "kpi",
-      "title": "Total Users",
-      "metric": "count_distinct_users",
-      "dateRange": { "start": "2024-01-01", "end": "2024-03-31" }
-    },
+      "type": "table",
+      "title": "Latest Signups",
+      "columns": ["email", "company_size", "created_at"],
+      "query": "SELECT email, company_size, created_at FROM users ORDER BY created_at DESC LIMIT 50"
+    }
+  ]
+}
+
+User: "Show me subscription metrics"
+Response:
+{
+  "reportName": "Subscription Overview",
+  "components": [
     {
-      "type": "line_chart",
-      "title": "Daily Active Users",
-      "xAxis": "date",
-      "yAxis": "count_distinct_users",
-      "groupBy": "day",
-      "dateRange": { "start": "2024-01-01", "end": "2024-03-31" }
+      "type": "metrics_grid",
+      "title": "Subscription Metrics",
+      "metrics": [
+        { "label": "Total Subscriptions", "query": "SELECT COUNT(*) as value FROM subscriptions" },
+        { "label": "Active Subscriptions", "query": "SELECT COUNT(*) as value FROM subscriptions WHERE status = 'active'" },
+        { "label": "Canceled", "query": "SELECT COUNT(*) as value FROM subscriptions WHERE status = 'canceled'" }
+      ]
     }
   ]
 }
 
 Guidelines:
 - Choose the visualization that best represents the data type and user intent
-- Use KPIs for single important numbers
-- Use line/area charts for trends over time
-- Use bar charts for comparisons across categories
-- Use pie/donut charts for proportions and distributions
-- Use scatter charts when exploring relationships between two metrics
-- Use tables for detailed multi-column data
-- Use metrics_grid for dashboard overviews with multiple KPIs
-- When user specifies specific dates or quarters, use custom dateRange with start/end
-- When user asks for relative periods (last week, last month), use predefined dateRange values
-- Use the current date ({{NOW}}) to calculate custom date ranges for specific time periods`;
+- Always include a valid SQL query for each component
+- Use the database schema to write accurate queries
+- Use appropriate date intervals based on user request
+- Alias columns correctly for each component type`;
 
 const MAX_RETRIES = 3;
 
@@ -272,9 +247,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Inject current date into system prompt
+    // Inject current date and schema into system prompt
     const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    const systemPrompt = SYSTEM_PROMPT_BASE.replace('{{NOW}}', now);
+    const schemaPrompt = getSchemaForPrompt();
+    const systemPrompt = SYSTEM_PROMPT_BASE
+      .replace('{{NOW}}', now)
+      .replace('{{SCHEMA}}', schemaPrompt);
 
     // Retry loop with validation feedback
     let lastValidationError: z.ZodError | null = null;
