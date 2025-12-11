@@ -123,33 +123,6 @@ export const componentsArraySchema = z.object({
 // JSON SCHEMA FOR ANTHROPIC STRUCTURED OUTPUT
 // ========================================
 
-// Date range definition for use in all components
-const dateRangeJsonSchema = {
-  oneOf: [
-    {
-      type: "string",
-      enum: ["last_7_days", "last_30_days", "last_90_days", "this_month", "last_month"]
-    },
-    {
-      type: "object",
-      required: ["start", "end"],
-      properties: {
-        start: {
-          type: "string",
-          pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-          description: "Start date in YYYY-MM-DD format"
-        },
-        end: {
-          type: "string",
-          pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-          description: "End date in YYYY-MM-DD format"
-        }
-      },
-      additionalProperties: false
-    }
-  ]
-};
-
 export const ANTHROPIC_JSON_SCHEMA = {
   type: "object" as const,
   properties: {

@@ -5,8 +5,9 @@ interface MetricsGridProps {
 }
 
 // Format large numbers with K, M, B suffixes
-const formatValue = (value: number | undefined): string => {
+const formatValue = (value: number | string | undefined): string => {
   if (value === undefined) return '-';
+  if (typeof value === 'string') return value;
   
   if (value >= 1_000_000_000) {
     return `${(value / 1_000_000_000).toFixed(1)}B`;

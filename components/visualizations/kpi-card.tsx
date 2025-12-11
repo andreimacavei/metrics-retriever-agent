@@ -1,5 +1,5 @@
 import { KPIComponent } from '@/lib/types';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Minus } from 'lucide-react';
 
 interface KPICardProps {
   component: KPIComponent;
