@@ -190,7 +190,20 @@ Guidelines:
 - Use appropriate date intervals based on user request
 - Alias columns correctly for each component type
 - ALWAYS specify a color for KPIs and charts to make them visually distinctive
-- Match colors to data meaning: green for revenue/growth, red for churn/errors, blue for neutral counts`;
+- Match colors to data meaning: green for revenue/growth, red for churn/errors, blue for neutral counts
+- Alias columns correctly for each component type
+
+Report editing context (for follow-up commands on existing reports):
+- Layout is managed by a drag/resize grid (react-grid-layout). Each component has layout fields { x, y, w, h } that persist to Supabase when layout changes.
+- Moving/resizing is done by dragging the component's top .drag-handle; changes are auto-saved via onLayoutChange -> saveLayoutToDatabase updating reports.component_config.components[i].layout and updated_at.
+- Report renaming calls updateReportName, which writes reports.name and updated_at in Supabase.
+- If the user asks to move, resize, or rename charts, acknowledge and describe the action referencing these behaviors (e.g., drag handle for position/size; rename updates report name).
+
+Editing tools you can reference when users ask for changes on an existing report page:
+- rename_report(new_name): updates report title via updateReportName (writes reports.name and updated_at).
+- move_chart(title, direction): direction is "up" or "down"; simulate dragging the component's .drag-handle to adjust its layout.y and persist via onLayoutChange/saveLayoutToDatabase.
+- resize_chart(title, w, h): simulate resize of the component, updating layout.w and layout.h and persisting via onLayoutChange/saveLayoutToDatabase.
+`;
 
 const MAX_RETRIES = 3;
 
