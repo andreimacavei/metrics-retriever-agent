@@ -37,12 +37,15 @@ export interface ComponentLayout {
   h: number;
 }
 
+export type ChartColor = 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'teal' | 'red' | 'yellow';
+
 export interface BaseComponent {
   type: 'kpi' | 'line_chart' | 'bar_chart' | 'table' | 'metrics_grid' | 'pie_chart' | 'area_chart' | 'donut_chart' | 'scatter_chart' | 'horizontal_bar_chart';
   title: string;
   dateRange?: DateRange;
   filters?: Filter[];
   layout?: ComponentLayout;
+  color?: ChartColor;
 }
 
 export interface KPIComponent extends BaseComponent {
@@ -54,6 +57,8 @@ export interface KPIComponent extends BaseComponent {
 export interface LineChartComponent extends BaseComponent {
   type: 'line_chart';
   query: string;
+  xAxis?: string;
+  yAxis?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -61,6 +66,8 @@ export interface LineChartComponent extends BaseComponent {
 export interface BarChartComponent extends BaseComponent {
   type: 'bar_chart';
   query: string;
+  xAxis?: string;
+  yAxis?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -81,6 +88,8 @@ export interface MetricsGridComponent extends BaseComponent {
 export interface PieChartComponent extends BaseComponent {
   type: 'pie_chart';
   query: string;
+  valueKey?: string;
+  nameKey?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -88,6 +97,8 @@ export interface PieChartComponent extends BaseComponent {
 export interface AreaChartComponent extends BaseComponent {
   type: 'area_chart';
   query: string;
+  xAxis?: string;
+  yAxis?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -95,6 +106,8 @@ export interface AreaChartComponent extends BaseComponent {
 export interface DonutChartComponent extends BaseComponent {
   type: 'donut_chart';
   query: string;
+  valueKey?: string;
+  nameKey?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -102,6 +115,8 @@ export interface DonutChartComponent extends BaseComponent {
 export interface ScatterChartComponent extends BaseComponent {
   type: 'scatter_chart';
   query: string;
+  xAxis?: string;
+  yAxis?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }
@@ -109,6 +124,8 @@ export interface ScatterChartComponent extends BaseComponent {
 export interface HorizontalBarChartComponent extends BaseComponent {
   type: 'horizontal_bar_chart';
   query: string;
+  xAxis?: string;
+  yAxis?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: { [key: string]: any }[];
 }

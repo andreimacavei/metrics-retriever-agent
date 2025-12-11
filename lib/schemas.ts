@@ -25,10 +25,13 @@ const filterSchema = z.object({
   value: z.any()
 });
 
+const chartColorSchema = z.enum(['blue', 'green', 'purple', 'orange', 'pink', 'teal', 'red', 'yellow']);
+
 const baseComponentSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   dateRange: dateRangeSchema.optional(),
-  filters: z.array(filterSchema).optional()
+  filters: z.array(filterSchema).optional(),
+  color: chartColorSchema.optional()
 });
 
 // ========================================
@@ -123,33 +126,6 @@ export const componentsArraySchema = z.object({
 // JSON SCHEMA FOR ANTHROPIC STRUCTURED OUTPUT
 // ========================================
 
-// Date range definition for use in all components
-const dateRangeJsonSchema = {
-  oneOf: [
-    {
-      type: "string",
-      enum: ["last_7_days", "last_30_days", "last_90_days", "this_month", "last_month"]
-    },
-    {
-      type: "object",
-      required: ["start", "end"],
-      properties: {
-        start: {
-          type: "string",
-          pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-          description: "Start date in YYYY-MM-DD format"
-        },
-        end: {
-          type: "string",
-          pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-          description: "End date in YYYY-MM-DD format"
-        }
-      },
-      additionalProperties: false
-    }
-  ]
-};
-
 export const ANTHROPIC_JSON_SCHEMA = {
   type: "object" as const,
   properties: {
@@ -167,7 +143,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["kpi"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns a single row with a 'value' column" }
+              query: { type: "string", description: "SQL query that returns a single row with a 'value' column" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color theme for the KPI value" }
             },
             additionalProperties: false
           },
@@ -177,7 +154,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["line_chart"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" }
+              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color for the line" }
             },
             additionalProperties: false
           },
@@ -187,7 +165,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["bar_chart"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" }
+              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color for the bars" }
             },
             additionalProperties: false
           },
@@ -197,7 +176,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["area_chart"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" }
+              query: { type: "string", description: "SQL query that returns rows with 'date' and 'value' columns" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color for the area" }
             },
             additionalProperties: false
           },
@@ -207,7 +187,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["scatter_chart"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns rows with 'x' and 'y' columns" }
+              query: { type: "string", description: "SQL query that returns rows with 'x' and 'y' columns" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color for the points" }
             },
             additionalProperties: false
           },
@@ -217,7 +198,8 @@ export const ANTHROPIC_JSON_SCHEMA = {
             properties: {
               type: { type: "string", enum: ["horizontal_bar_chart"] },
               title: { type: "string" },
-              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" }
+              query: { type: "string", description: "SQL query that returns rows with 'label' and 'value' columns" },
+              color: { type: "string", enum: ["blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"], description: "Color for the bars" }
             },
             additionalProperties: false
           },

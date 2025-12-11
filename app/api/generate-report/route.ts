@@ -65,6 +65,20 @@ SQL Query Guidelines:
 - Include ORDER BY for time-series data
 - Use LIMIT for table queries to prevent too much data
 
+Color Guidelines:
+- You can specify a "color" property for charts and KPIs to make them visually distinctive
+- Available colors: "blue", "green", "purple", "orange", "pink", "teal", "red", "yellow"
+- Choose colors that match the meaning of the data:
+  - Use "green" for positive metrics (revenue, growth, success)
+  - Use "red" for negative metrics (churn, errors, declines)
+  - Use "blue" for neutral metrics (counts, totals)
+  - Use "orange" or "yellow" for warnings or attention-needed metrics
+  - Use "purple" for special or premium metrics
+  - Use "teal" for balanced or stable metrics
+- For KPIs showing money/revenue, consider using "green"
+- For KPIs showing user counts or neutral data, use "blue"
+- For charts, pick colors that help users quickly understand the data's meaning
+
 You must respond with ONLY valid JSON in this format:
 {
   "reportName": "descriptive report name",
@@ -88,25 +102,34 @@ Response:
     {
       "type": "kpi",
       "title": "Total Active Users",
-      "query": "SELECT COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'"
+      "query": "SELECT COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'",
+      "color": "blue"
     },
     {
       "type": "line_chart",
       "title": "DAU Trend",
-      "query": "SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(timestamp) ORDER BY date"
+      "query": "SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(timestamp) ORDER BY date",
+      "color": "teal"
     }
   ]
 }
 
-User: "Show me event distribution by type"
+User: "Show me revenue this month"
 Response:
 {
-  "reportName": "Event Type Distribution",
+  "reportName": "Monthly Revenue",
   "components": [
     {
-      "type": "pie_chart",
-      "title": "Events by Type",
-      "query": "SELECT action as name, COUNT(*) as value FROM events WHERE timestamp >= CURRENT_DATE - INTERVAL '30 days' GROUP BY action"
+      "type": "kpi",
+      "title": "Total Revenue",
+      "query": "SELECT SUM(price) as value FROM subscriptions s JOIN plans p ON s.plan_id = p.id WHERE s.started_at >= DATE_TRUNC('month', CURRENT_DATE)",
+      "color": "green"
+    },
+    {
+      "type": "bar_chart",
+      "title": "Revenue by Plan",
+      "query": "SELECT p.name as label, SUM(p.price) as value FROM subscriptions s JOIN plans p ON s.plan_id = p.id GROUP BY p.name ORDER BY value DESC",
+      "color": "green"
     }
   ]
 }
@@ -119,7 +142,8 @@ Response:
     {
       "type": "bar_chart",
       "title": "Users by Company Size",
-      "query": "SELECT CASE WHEN company_size < 10 THEN 'Small' WHEN company_size < 100 THEN 'Medium' ELSE 'Large' END as label, COUNT(*) as value FROM users GROUP BY label ORDER BY value DESC"
+      "query": "SELECT CASE WHEN company_size < 10 THEN 'Small' WHEN company_size < 100 THEN 'Medium' ELSE 'Large' END as label, COUNT(*) as value FROM users GROUP BY label ORDER BY value DESC",
+      "color": "purple"
     }
   ]
 }
@@ -138,19 +162,22 @@ Response:
   ]
 }
 
-User: "Show me subscription metrics"
+User: "Show me churn metrics"
 Response:
 {
-  "reportName": "Subscription Overview",
+  "reportName": "Churn Overview",
   "components": [
     {
-      "type": "metrics_grid",
-      "title": "Subscription Metrics",
-      "metrics": [
-        { "label": "Total Subscriptions", "query": "SELECT COUNT(*) as value FROM subscriptions" },
-        { "label": "Active Subscriptions", "query": "SELECT COUNT(*) as value FROM subscriptions WHERE status = 'active'" },
-        { "label": "Canceled", "query": "SELECT COUNT(*) as value FROM subscriptions WHERE status = 'canceled'" }
-      ]
+      "type": "kpi",
+      "title": "Canceled Subscriptions",
+      "query": "SELECT COUNT(*) as value FROM subscriptions WHERE status = 'canceled'",
+      "color": "red"
+    },
+    {
+      "type": "line_chart",
+      "title": "Churn Trend",
+      "query": "SELECT DATE(canceled_at) as date, COUNT(*) as value FROM subscriptions WHERE canceled_at IS NOT NULL GROUP BY DATE(canceled_at) ORDER BY date",
+      "color": "red"
     }
   ]
 }
@@ -160,6 +187,9 @@ Guidelines:
 - Always include a valid SQL query for each component
 - Use the database schema to write accurate queries
 - Use appropriate date intervals based on user request
+- Alias columns correctly for each component type
+- ALWAYS specify a color for KPIs and charts to make them visually distinctive
+- Match colors to data meaning: green for revenue/growth, red for churn/errors, blue for neutral counts
 - Alias columns correctly for each component type
 
 Report editing context (for follow-up commands on existing reports):

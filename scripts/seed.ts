@@ -308,25 +308,27 @@ async function seed() {
   if (defaultFolder) {
     const componentConfig: ComponentConfig = {
       components: [
-        { type: 'kpi', title: 'Total Users', metric: 'count_distinct_users' },
-        { type: 'kpi', title: 'Active Subscriptions', metric: 'count_active_subscriptions' },
+        { type: 'kpi', title: 'Total Users', query: 'SELECT COUNT(DISTINCT id) FROM users' },
+        { type: 'kpi', title: 'Active Subscriptions', query: 'SELECT COUNT(*) FROM subscriptions WHERE status = \'active\'' },
         {
           type: 'line_chart',
           title: 'Daily Active Users (30d)',
+          query: 'SELECT date, COUNT(DISTINCT user_id) as daily_active_users FROM events GROUP BY date',
           xAxis: 'date',
           yAxis: 'daily_active_users',
-          groupBy: 'day',
           dateRange: 'last_30_days'
         },
         {
           type: 'pie_chart',
           title: 'Users by Plan',
-          xAxis: 'plan_name',
-          yAxis: 'user_count'
+          query: 'SELECT plan_name, COUNT(*) as user_count FROM users GROUP BY plan_name',
+          valueKey: 'user_count',
+          nameKey: 'plan_name'
         },
         {
           type: 'bar_chart',
           title: 'Feature Usage',
+          query: 'SELECT feature, COUNT(*) as usage_count FROM feature_usage GROUP BY feature',
           xAxis: 'feature',
           yAxis: 'usage_count'
         }

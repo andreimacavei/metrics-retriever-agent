@@ -82,7 +82,6 @@ export function validateReadOnlySQL(query: string): ValidationResult {
   // Check for potential SQL injection patterns
   if (normalizedQuery.includes(';') && normalizedQuery.indexOf(';') < normalizedQuery.length - 1) {
     // Allow semicolon only at the end
-    const beforeSemicolon = normalizedQuery.substring(0, normalizedQuery.lastIndexOf(';')).trim();
     const afterSemicolon = normalizedQuery.substring(normalizedQuery.lastIndexOf(';') + 1).trim();
     
     if (afterSemicolon.length > 0) {
