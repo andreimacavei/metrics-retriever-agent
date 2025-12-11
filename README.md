@@ -72,7 +72,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - Seed sample data: `npm run db:seed`
 
 ## Usage
-
 ### Creating Reports
 
 1. Type a natural language request in the chat interface
