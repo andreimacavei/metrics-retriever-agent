@@ -407,14 +407,23 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
             breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
             cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
             rowHeight={ROW_HEIGHT}
-            margin={[16, 16] as const}
+            margin={[20, 20] as const}
             dragConfig={{ enabled: true, handle: '.drag-handle', bounded: false, threshold: 3 }}
             onLayoutChange={handleLayoutChange}
           >
             {components.map((component, index) => (
-              <div key={String(index)} className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="drag-handle cursor-move h-2 bg-muted/50 hover:bg-muted transition-colors" />
-                <div className="h-[calc(100%-8px)] overflow-auto">
+              <div key={String(index)} className="dashboard-card">
+                <div className="drag-handle dashboard-drag-handle">
+                  <div className="dashboard-drag-handle-dots">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+                <div className="dashboard-card-content">
                   {renderComponent(component)}
                 </div>
               </div>

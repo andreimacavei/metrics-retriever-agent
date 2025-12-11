@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { KPIComponent } from '@/lib/types';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface KPICardProps {
   component: KPIComponent;
@@ -20,22 +20,49 @@ const formatDateRange = (dateRange: string | { start: string; end: string } | un
   return '';
 };
 
+// Format large numbers with K, M, B suffixes
+const formatValue = (value: number | string | undefined): string => {
+  if (value === undefined) return '-';
+  if (typeof value === 'string') return value;
+  
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+  return value.toLocaleString();
+};
+
 export function KPICard({ component }: KPICardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base font-semibold text-muted-foreground">{component.title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
-          {component.value !== undefined ? component.value.toLocaleString() : '-'}
+    <div className="h-full flex flex-col p-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 mb-auto">
+        <h3 className="text-sm font-medium text-muted-foreground leading-tight">
+          {component.title}
+        </h3>
+        <div className="flex-shrink-0">
+          <Minus className="w-4 h-4 text-muted-foreground/50" />
         </div>
-        {component.dateRange && (
-          <p className="text-sm text-muted-foreground mt-2">
-            {formatDateRange(component.dateRange)}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      
+      {/* Value */}
+      <div className="flex-1 flex items-center">
+        <span className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
+          {formatValue(component.value)}
+        </span>
+      </div>
+      
+      {/* Footer */}
+      {component.dateRange && (
+        <p className="text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
+          {formatDateRange(component.dateRange)}
+        </p>
+      )}
+    </div>
   );
 }
