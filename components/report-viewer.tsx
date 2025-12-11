@@ -16,7 +16,7 @@ import { ScatterChartVisualization } from './visualizations/scatter-chart';
 import { HorizontalBarChartVisualization } from './visualizations/horizontal-bar-chart';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { RefreshCw, Filter, MoreHorizontal, Trash2, Calendar } from 'lucide-react';
+import { RefreshCw, Filter, MoreHorizontal, Trash2, Calendar, Pencil } from 'lucide-react';
 
 interface LayoutItem {
   i: string;
@@ -107,6 +107,8 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [reportName, setReportName] = useState(report.name);
   const layoutSaveRef = useRef<Component[]>([]);
+  const [editingChartIndex, setEditingChartIndex] = useState<number | null>(null);
+  const [editingChartTitle, setEditingChartTitle] = useState('');
   const { containerRef: gridContainerRef, width: containerWidth } = useContainerWidth();
 
   // Generate layouts from components
@@ -297,6 +299,42 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
     }
   };
 
+  const startRenameChart = (index: number, title: string) => {
+    setEditingChartIndex(index);
+    setEditingChartTitle(title);
+  };
+
+  const saveChartTitle = async () => {
+    if (editingChartIndex === null) return;
+    const newTitle = editingChartTitle.trim();
+    if (!newTitle) {
+      setEditingChartIndex(null);
+      return;
+    }
+
+    const currentTitle = components[editingChartIndex]?.title;
+    const response = await fetch('/api/report-tools', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'rename_chart',
+        reportId: report.id,
+        title: currentTitle,
+        newTitle
+      })
+    });
+
+    if (response.ok) {
+      const updatedComponents = components.map((comp, idx) =>
+        idx === editingChartIndex ? { ...comp, title: newTitle } : comp
+      );
+      setComponents(updatedComponents);
+      layoutSaveRef.current = updatedComponents;
+    }
+
+    setEditingChartIndex(null);
+  };
+
   return (
     <div className="p-6 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-5">
@@ -414,7 +452,35 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
             {components.map((component, index) => (
               <div key={String(index)} className="bg-card border border-border rounded-lg overflow-hidden">
                 <div className="drag-handle cursor-move h-2 bg-muted/50 hover:bg-muted transition-colors" />
-                <div className="h-[calc(100%-8px)] overflow-auto">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+                  {editingChartIndex === index ? (
+                    <Input
+                      value={editingChartTitle}
+                      onChange={(e) => setEditingChartTitle(e.target.value)}
+                      onBlur={saveChartTitle}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveChartTitle();
+                        if (e.key === 'Escape') setEditingChartIndex(null);
+                      }}
+                      className="h-9 text-sm"
+                      autoFocus
+                    />
+                  ) : (
+                    <>
+                      <span className="text-sm font-semibold truncate">{component.title}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => startRenameChart(index, component.title)}
+                        title="Rename chart"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="h-[calc(100%-8px-44px)] overflow-auto">
                   {renderComponent(component)}
                 </div>
               </div>

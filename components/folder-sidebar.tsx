@@ -18,7 +18,7 @@ import {
   FolderPlus, FileText, User, Settings, Crown, Moon, Sun, Monitor, ChevronRight,
   FolderOpen, Briefcase, Archive, Star, Heart, Bookmark, Box, Layers, Package,
   Target, Zap, Trophy, Rocket, Shield, Flag, Calendar, Clock, Bell, Mail, Users, Home,
-  Database, Code, Terminal, Globe, Lock, Key, Settings as SettingsIcon, Wrench, PanelLeftClose, PanelLeft, Search, Plus
+  Database, Code, Terminal, Globe, Lock, Key, Settings as SettingsIcon, Wrench, PanelLeftClose, PanelLeft, Search, Plus, Pencil
 } from 'lucide-react';
 
 const FOLDER_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -78,10 +78,12 @@ function DraggableReport({
   report,
   isSelected,
   onSelect,
+  onRename,
 }: {
   report: Report;
   isSelected: boolean;
   onSelect: () => void;
+  onRename: () => void;
 }) {
   const {
     attributes,
@@ -111,6 +113,16 @@ function DraggableReport({
     >
       <FileText className="w-5 h-5 flex-shrink-0 text-primary/70" />
       <span className="text-base truncate font-medium">{report.name}</span>
+      <button
+        className="ml-auto text-muted-foreground hover:text-primary"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRename();
+        }}
+        aria-label="Rename report"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
     </div>
   );
 }
@@ -129,12 +141,14 @@ function DraggableFolder({
   selectedReportId,
   onSelectReport,
   onSelectFolder,
+  onRenameReport,
 }: {
   folder: Folder;
   reports: Report[];
   selectedReportId?: string;
   onSelectReport: (report: Report) => void;
   onSelectFolder: (folder: Folder) => void;
+  onRenameReport: (report: Report) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const {
@@ -195,6 +209,7 @@ function DraggableFolder({
               report={report}
               isSelected={selectedReportId === report.id}
               onSelect={() => onSelectReport(report)}
+              onRename={() => onRenameReport(report)}
             />
           ))}
         </div>
@@ -213,6 +228,9 @@ export function FolderSidebar({ onSelectReport, onSelectFolder, selectedReportId
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRenameReportOpen, setIsRenameReportOpen] = useState(false);
+  const [renameReportId, setRenameReportId] = useState<string | null>(null);
+  const [renameReportName, setRenameReportName] = useState('');
   const { theme, setTheme } = useTheme();
 
   const sensors = useSensors(
@@ -244,6 +262,33 @@ export function FolderSidebar({ onSelectReport, onSelectFolder, selectedReportId
       .order('created_at', { ascending: false });
 
     if (data) setReports(data);
+  };
+
+  const openRenameReport = (report: Report) => {
+    setRenameReportId(report.id);
+    setRenameReportName(report.name);
+    setIsRenameReportOpen(true);
+  };
+
+  const saveRenameReport = async () => {
+    if (!renameReportId || !renameReportName.trim()) {
+      setIsRenameReportOpen(false);
+      return;
+    }
+
+    const newName = renameReportName.trim();
+    const response = await fetch('/api/report-tools', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rename_report', reportId: renameReportId, newName })
+    });
+
+    if (response.ok) {
+      setReports((prev) =>
+        prev.map((r) => (r.id === renameReportId ? { ...r, name: newName } : r))
+      );
+    }
+    setIsRenameReportOpen(false);
   };
 
   const createFolder = async () => {
@@ -499,6 +544,7 @@ export function FolderSidebar({ onSelectReport, onSelectFolder, selectedReportId
                           report={report}
                           isSelected={selectedReportId === report.id}
                           onSelect={() => onSelectReport(report)}
+                          onRename={() => openRenameReport(report)}
                         />
                       ))}
                     </div>
@@ -519,6 +565,7 @@ export function FolderSidebar({ onSelectReport, onSelectFolder, selectedReportId
                       selectedReportId={selectedReportId}
                       onSelectReport={onSelectReport}
                       onSelectFolder={onSelectFolder}
+                      onRenameReport={openRenameReport}
                     />
                   );
                 })}
@@ -665,6 +712,33 @@ export function FolderSidebar({ onSelectReport, onSelectFolder, selectedReportId
               >
                 Sign Out
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Report Dialog */}
+        <Dialog open={isRenameReportOpen} onOpenChange={setIsRenameReportOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Rename Report</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                value={renameReportName}
+                onChange={(e) => setRenameReportName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveRenameReport();
+                  if (e.key === 'Escape') setIsRenameReportOpen(false);
+                }}
+                autoFocus
+                placeholder="New report name"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsRenameReportOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={saveRenameReport}>Save</Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
