@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarRefreshProvider } from "@/components/sidebar-refresh-context";
 import { AppLayout } from "@/components/app-layout";
+import { VoiceFab } from "@/components/voice-fab";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
             <AppLayout>
               {children}
             </AppLayout>
+            <VoiceFab />
           </SidebarRefreshProvider>
         </ThemeProvider>
       </body>
