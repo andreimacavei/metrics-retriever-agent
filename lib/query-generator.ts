@@ -1,182 +1,163 @@
-import { getSupabaseAdmin } from './supabase';
 import { Component } from './types';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { validateReadOnlySQL, sanitizeSQL } from './sql-validator';
+import postgres from 'postgres';
+
+// Create a connection pool for executing raw SQL
+function getPostgresClient() {
+  const connectionString = process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('Missing SUPABASE_DB_URL or DATABASE_URL');
+  }
+  return postgres(connectionString);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function executeQuery(component: Component): Promise<any> {
-  const supabaseAdmin = getSupabaseAdmin();
-  const dateRange = getDateRange(component.dateRange);
-
   switch (component.type) {
     case 'kpi':
-      return executeKPIQuery(supabaseAdmin, component.metric, dateRange);
+      return executeKPIQuery(component.query);
 
     case 'line_chart':
+    case 'area_chart':
+      return executeTimeSeriesQuery(component.query);
+
     case 'bar_chart':
-      return executeChartQuery(supabaseAdmin, component.yAxis, dateRange, component.groupBy);
+    case 'horizontal_bar_chart':
+      return executeBarChartQuery(component.query);
+
+    case 'pie_chart':
+    case 'donut_chart':
+      return executePieChartQuery(component.query);
+
+    case 'scatter_chart':
+      return executeScatterQuery(component.query);
 
     case 'table':
-      return executeTableQuery(supabaseAdmin, component.columns, dateRange);
+      return executeTableQuery(component.query);
 
     case 'metrics_grid':
-      return executeMetricsGridQuery(supabaseAdmin, component.metrics, dateRange);
+      return executeMetricsGridQuery(component.metrics);
 
     default:
       return null;
   }
 }
 
-function getDateRange(range?: string | { start: string; end: string }): { start: Date; end: Date } {
-  // Handle custom date range object
-  if (typeof range === 'object' && range !== null && 'start' in range && 'end' in range) {
-    return {
-      start: new Date(range.start),
-      end: new Date(range.end)
-    };
+/**
+ * Executes a validated SQL query and returns the results
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeSQL(query: string): Promise<any[]> {
+  // Validate the query is read-only
+  const validation = validateReadOnlySQL(query);
+  if (!validation.isValid) {
+    throw new Error(`SQL validation failed: ${validation.error}`);
   }
 
-  // Handle predefined date ranges
-  const end = new Date();
-  const start = new Date();
+  // Sanitize the query
+  const sanitizedQuery = sanitizeSQL(query);
 
-  switch (range) {
-    case 'last_7_days':
-      start.setDate(start.getDate() - 7);
-      break;
-    case 'last_30_days':
-      start.setDate(start.getDate() - 30);
-      break;
-    case 'last_90_days':
-      start.setDate(start.getDate() - 90);
-      break;
-    case 'this_month':
-      start.setDate(1);
-      break;
-    case 'last_month':
-      start.setMonth(start.getMonth() - 1);
-      start.setDate(1);
-      end.setDate(0);
-      break;
-    default:
-      start.setDate(start.getDate() - 30);
-  }
-
-  return { start, end };
-}
-
-async function executeKPIQuery(supabaseAdmin: SupabaseClient, metric: string, dateRange: { start: Date; end: Date }) {
-  switch (metric) {
-    case 'count_distinct_users':
-    case 'daily_active_users':
-    case 'weekly_active_users':
-    case 'monthly_active_users': {
-      const { data } = await supabaseAdmin
-        .from('users')
-        .select('id', { count: 'exact', head: false })
-        .gte('last_seen_at', dateRange.start.toISOString())
-        .lte('last_seen_at', dateRange.end.toISOString());
-
-      return data ? data.length : 0;
-    }
-
-    case 'count_events': {
-      const { data } = await supabaseAdmin
-        .from('events')
-        .select('id', { count: 'exact', head: false })
-        .gte('timestamp', dateRange.start.toISOString())
-        .lte('timestamp', dateRange.end.toISOString());
-
-      return data ? data.length : 0;
-    }
-
-    default:
-      return 0;
+  // Execute the query
+  const sql = getPostgresClient();
+  try {
+    const result = await sql.unsafe(sanitizedQuery);
+    return result;
+  } finally {
+    await sql.end();
   }
 }
 
-async function executeChartQuery(
-  supabaseAdmin: SupabaseClient,
-  metric: string,
-  dateRange: { start: Date; end: Date },
-  groupBy?: string
-) {
-  // For simplicity, we'll aggregate events by date
-  const { data: events } = await supabaseAdmin
-    .from('events')
-    .select('timestamp, user_id')
-    .gte('timestamp', dateRange.start.toISOString())
-    .lte('timestamp', dateRange.end.toISOString())
-    .order('timestamp', { ascending: true });
+/**
+ * KPI Query - expects a single row with a 'value' column
+ */
+async function executeKPIQuery(query: string): Promise<number | string> {
+  const results = await executeSQL(query);
+  
+  if (results.length === 0) {
+    return 0;
+  }
 
-  if (!events) return [];
+  const row = results[0];
+  // Look for 'value' column, or take the first column
+  if ('value' in row) {
+    return row.value;
+  }
+  
+  // Fallback: return first column value
+  const firstKey = Object.keys(row)[0];
+  return firstKey ? row[firstKey] : 0;
+}
 
-  // Group data by day/week/month
-  const grouped = new Map<string, Set<string>>();
-
-  events.forEach((event) => {
-    const date = new Date(event.timestamp);
-    let key: string;
-
-    switch (groupBy) {
-      case 'hour':
-        key = date.toISOString().substring(0, 13);
-        break;
-      case 'day':
-        key = date.toISOString().substring(0, 10);
-        break;
-      case 'week':
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = weekStart.toISOString().substring(0, 10);
-        break;
-      case 'month':
-        key = date.toISOString().substring(0, 7);
-        break;
-      default:
-        key = date.toISOString().substring(0, 10);
-    }
-
-    if (!grouped.has(key)) {
-      grouped.set(key, new Set());
-    }
-    if (event.user_id) {
-      grouped.get(key)!.add(event.user_id);
-    }
-  });
-
-  return Array.from(grouped.entries()).map(([date, users]) => ({
-    date,
-    [metric]: users.size,
+/**
+ * Time Series Query (line_chart, area_chart) - expects rows with 'date' and 'value' columns
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeTimeSeriesQuery(query: string): Promise<any[]> {
+  const results = await executeSQL(query);
+  
+  return results.map(row => ({
+    date: row.date,
+    value: row.value ?? row.count ?? 0
   }));
 }
 
-async function executeTableQuery(supabaseAdmin: SupabaseClient, columns: string[], dateRange: { start: Date; end: Date }) {
-  const { data: events } = await supabaseAdmin
-    .from('events')
-    .select('event_name, timestamp, user_id')
-    .gte('timestamp', dateRange.start.toISOString())
-    .lte('timestamp', dateRange.end.toISOString())
-    .order('timestamp', { ascending: false })
-    .limit(100);
-
-  if (!events) return [];
-
-  return events.map((event) => ({
-    event_name: event.event_name,
-    timestamp: new Date(event.timestamp).toLocaleDateString(),
-    user_id: event.user_id?.substring(0, 8) + '...',
+/**
+ * Bar Chart Query - expects rows with 'label' and 'value' columns
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeBarChartQuery(query: string): Promise<any[]> {
+  const results = await executeSQL(query);
+  
+  return results.map(row => ({
+    label: row.label ?? row.name ?? '',
+    value: row.value ?? row.count ?? 0
   }));
 }
 
+/**
+ * Pie/Donut Chart Query - expects rows with 'name' and 'value' columns
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executePieChartQuery(query: string): Promise<any[]> {
+  const results = await executeSQL(query);
+  
+  return results.map(row => ({
+    name: row.name ?? row.label ?? '',
+    value: row.value ?? row.count ?? 0
+  }));
+}
+
+/**
+ * Scatter Chart Query - expects rows with 'x' and 'y' columns
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeScatterQuery(query: string): Promise<any[]> {
+  const results = await executeSQL(query);
+  
+  return results.map(row => ({
+    x: row.x ?? 0,
+    y: row.y ?? 0
+  }));
+}
+
+/**
+ * Table Query - returns raw results
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeTableQuery(query: string): Promise<any[]> {
+  return executeSQL(query);
+}
+
+/**
+ * Metrics Grid Query - executes multiple KPI queries
+ */
 async function executeMetricsGridQuery(
-  supabaseAdmin: SupabaseClient,
-  metrics: { label: string; metric: string }[],
-  dateRange: { start: Date; end: Date }
-) {
+  metrics: { label: string; query: string }[]
+): Promise<{ label: string; value: number | string }[]> {
   const results = await Promise.all(
     metrics.map(async (m) => {
-      const value = await executeKPIQuery(supabaseAdmin, m.metric, dateRange);
-      return { ...m, value };
+      const value = await executeKPIQuery(m.query);
+      return { label: m.label, value };
     })
   );
 

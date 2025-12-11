@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Report, Component, DateRange } from '@/lib/types';
+import { useEffect, useState, useRef } from 'react';
+import { Responsive, useContainerWidth } from 'react-grid-layout';
+import { Report, Component, DateRange, ComponentLayout } from '@/lib/types';
 import { useSidebarRefresh } from '@/components/sidebar-refresh-context';
 import { KPICard } from './visualizations/kpi-card';
 import { LineChartVisualization } from './visualizations/line-chart';
@@ -16,6 +17,16 @@ import { HorizontalBarChartVisualization } from './visualizations/horizontal-bar
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { RefreshCw, Filter, MoreHorizontal, Trash2, Calendar } from 'lucide-react';
+
+interface LayoutItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +69,31 @@ const formatDateRange = (dateRange: string | { start: string; end: string } | un
   return 'N/A';
 };
 
+// Get default layout size based on component type
+const getDefaultLayoutForType = (type: Component['type']): { w: number; h: number } => {
+  switch (type) {
+    case 'kpi':
+      return { w: 1, h: 1 };
+    case 'metrics_grid':
+      return { w: 4, h: 1 };
+    case 'table':
+      return { w: 4, h: 2 };
+    case 'line_chart':
+    case 'bar_chart':
+    case 'area_chart':
+    case 'pie_chart':
+    case 'donut_chart':
+    case 'scatter_chart':
+    case 'horizontal_bar_chart':
+      return { w: 2, h: 2 };
+    default:
+      return { w: 2, h: 2 };
+  }
+};
+
+// Grid configuration
+const ROW_HEIGHT = 200;
+
 export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
   const { refreshSidebar } = useSidebarRefresh();
   const [components, setComponents] = useState<Component[]>([]);
@@ -70,6 +106,76 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [reportName, setReportName] = useState(report.name);
+  const layoutSaveRef = useRef<Component[]>([]);
+  const { containerRef: gridContainerRef, width: containerWidth } = useContainerWidth();
+
+  // Generate layouts from components
+  const generateLayouts = (comps: Component[]): LayoutItem[] => {
+    let currentX = 0;
+    let currentY = 0;
+    
+    return comps.map((comp, index) => {
+      const defaultSize = getDefaultLayoutForType(comp.type);
+      const layout = comp.layout || { x: 0, y: 0, ...defaultSize };
+      
+      // If no stored layout, calculate position automatically
+      if (!comp.layout) {
+        // Check if component fits on current row
+        if (currentX + defaultSize.w > 4) {
+          currentX = 0;
+          currentY += 2; // Move to next row
+        }
+        layout.x = currentX;
+        layout.y = currentY;
+        currentX += defaultSize.w;
+      }
+      
+      return {
+        i: String(index),
+        x: layout.x,
+        y: layout.y,
+        w: layout.w,
+        h: layout.h,
+        minW: 1,
+        minH: 1,
+      };
+    });
+  };
+
+  // Save layout to database immediately
+  const saveLayoutToDatabase = async (newLayouts: LayoutItem[]) => {
+    const updatedComponents = layoutSaveRef.current.map((comp, index) => {
+      const layoutItem = newLayouts.find(l => l.i === String(index));
+      if (layoutItem) {
+        return {
+          ...comp,
+          layout: {
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h,
+          } as ComponentLayout,
+        };
+      }
+      return comp;
+    });
+
+    await supabase
+      .from('reports')
+      .update({
+        component_config: { components: updatedComponents },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', report.id);
+  };
+
+  // Handle layout change - save immediately
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleLayoutChange = (currentLayout: any) => {
+    if (Array.isArray(currentLayout)) {
+      saveLayoutToDatabase(currentLayout as LayoutItem[]);
+    }
+  };
 
   // Get the actual date range value to use in queries
   const getDateRange = (): DateRange => {
@@ -123,7 +229,13 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
 
       const data = await response.json();
       if (data.components) {
-        setComponents(data.components);
+        // Preserve layout from original report config
+        const componentsWithLayout = data.components.map((comp: Component, index: number) => ({
+          ...comp,
+          layout: report.component_config.components[index]?.layout,
+        }));
+        setComponents(componentsWithLayout);
+        layoutSaveRef.current = componentsWithLayout;
       }
     } catch (error) {
       console.error('Error loading report data:', error);
@@ -158,28 +270,28 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
     }
   };
 
-  const renderComponent = (component: Component, index: number) => {
+  const renderComponent = (component: Component) => {
     switch (component.type) {
       case 'kpi':
-        return <KPICard key={index} component={component} />;
+        return <KPICard component={component} />;
       case 'line_chart':
-        return <LineChartVisualization key={index} component={component} />;
+        return <LineChartVisualization component={component} />;
       case 'bar_chart':
-        return <BarChartVisualization key={index} component={component} />;
+        return <BarChartVisualization component={component} />;
       case 'table':
-        return <DataTable key={index} component={component} />;
+        return <DataTable component={component} />;
       case 'metrics_grid':
-        return <MetricsGrid key={index} component={component} />;
+        return <MetricsGrid component={component} />;
       case 'pie_chart':
-        return <PieChartVisualization key={index} component={component} />;
+        return <PieChartVisualization component={component} />;
       case 'area_chart':
-        return <AreaChartVisualization key={index} component={component} />;
+        return <AreaChartVisualization component={component} />;
       case 'donut_chart':
-        return <DonutChartVisualization key={index} component={component} />;
+        return <DonutChartVisualization component={component} />;
       case 'scatter_chart':
-        return <ScatterChartVisualization key={index} component={component} />;
+        return <ScatterChartVisualization component={component} />;
       case 'horizontal_bar_chart':
-        return <HorizontalBarChartVisualization key={index} component={component} />;
+        return <HorizontalBarChartVisualization component={component} />;
       default:
         return null;
     }
@@ -286,15 +398,36 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
         </div>
       </div>
 
-      <div className="space-y-5 md:space-y-7">
-        {components.map((component, index) => renderComponent(component, index))}
+      <div ref={gridContainerRef}>
+        {components.length > 0 && containerWidth > 0 ? (
+          <Responsive
+            className="layout"
+            width={containerWidth}
+            layouts={{ lg: generateLayouts(components), md: generateLayouts(components), sm: generateLayouts(components) }}
+            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+            cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
+            rowHeight={ROW_HEIGHT}
+            margin={[16, 16] as const}
+            dragConfig={{ enabled: true, handle: '.drag-handle', bounded: false, threshold: 3 }}
+            onLayoutChange={handleLayoutChange}
+          >
+            {components.map((component, index) => (
+              <div key={String(index)} className="bg-card border border-border rounded-lg overflow-hidden">
+                <div className="drag-handle cursor-move h-2 bg-muted/50 hover:bg-muted transition-colors" />
+                <div className="h-[calc(100%-8px)] overflow-auto">
+                  {renderComponent(component)}
+                </div>
+              </div>
+            ))}
+          </Responsive>
+        ) : (
+          !isLoading && components.length === 0 && (
+            <div className="text-center py-12 md:py-16 text-base md:text-lg text-muted-foreground">
+              No components to display
+            </div>
+          )
+        )}
       </div>
-
-      {components.length === 0 && !isLoading && (
-        <div className="text-center py-12 md:py-16 text-base md:text-lg text-muted-foreground">
-          No components to display
-        </div>
-      )}
 
       {/* Report Settings Dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -342,10 +475,7 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
                       {comp.dateRange && (
                         <div>Date Range: {formatDateRange(comp.dateRange)}</div>
                       )}
-                      {'metric' in comp && <div>Metric: {comp.metric}</div>}
-                      {'xAxis' in comp && <div>X-Axis: {comp.xAxis}</div>}
-                      {'yAxis' in comp && <div>Y-Axis: {comp.yAxis}</div>}
-                      {'groupBy' in comp && comp.groupBy && <div>Group By: {comp.groupBy}</div>}
+                      {'query' in comp && <div>Query: {comp.query}</div>}
                     </div>
                   </div>
                 ))}
