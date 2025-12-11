@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarRefreshProvider } from "@/components/sidebar-refresh-context";
+import { ReportContextProvider } from "@/components/report-context";
 import { AppLayout } from "@/components/app-layout";
 import { VoiceFab } from "@/components/voice-fab";
 
@@ -39,10 +40,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SidebarRefreshProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
-            <VoiceFab />
+            <ReportContextProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+              <VoiceFab />
+            </ReportContextProvider>
           </SidebarRefreshProvider>
         </ThemeProvider>
       </body>

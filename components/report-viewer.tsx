@@ -52,6 +52,7 @@ import { supabase } from '@/lib/supabase';
 interface ReportViewerProps {
   report: Report;
   onReportDeleted?: () => void;
+  onComponentsUpdated?: (components: Component[]) => void;
 }
 
 // Helper function to format date range for display
@@ -94,7 +95,7 @@ const getDefaultLayoutForType = (type: Component['type']): { w: number; h: numbe
 // Grid configuration
 const ROW_HEIGHT = 200;
 
-export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
+export function ReportViewer({ report, onReportDeleted, onComponentsUpdated }: ReportViewerProps) {
   const { refreshSidebar } = useSidebarRefresh();
   const [components, setComponents] = useState<Component[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -108,6 +109,7 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
   const [reportName, setReportName] = useState(report.name);
   const layoutSaveRef = useRef<Component[]>([]);
   const { containerRef: gridContainerRef, width: containerWidth } = useContainerWidth();
+
 
   // Generate layouts from components
   const generateLayouts = (comps: Component[]): LayoutItem[] => {
@@ -193,6 +195,44 @@ export function ReportViewer({ report, onReportDeleted }: ReportViewerProps) {
   useEffect(() => {
     setReportName(report.name);
   }, [report.name]);
+
+  // Update components when report.component_config changes externally (e.g., from voice modifications)
+  useEffect(() => {
+    if (report.component_config.components.length > 0) {
+      // Check if components actually changed by comparing titles and layouts
+      const currentTitles = components.map(c => c.title).join('|');
+      const newTitles = report.component_config.components.map(c => c.title).join('|');
+      const currentLayouts = components.map(c => JSON.stringify(c.layout)).join('|');
+      const newLayouts = report.component_config.components.map(c => JSON.stringify(c.layout)).join('|');
+      
+      if (currentTitles !== newTitles || currentLayouts !== newLayouts) {
+        // Preserve data from existing components if available
+        const componentsWithData = report.component_config.components.map((comp, index) => {
+          const existingComp = components[index];
+          const updatedComp = { ...comp };
+          
+          // Preserve data property if it exists on both components
+          if ('data' in comp && existingComp && 'data' in existingComp) {
+            const compWithData = comp as { data?: unknown };
+            const existingWithData = existingComp as { data?: unknown };
+            (updatedComp as { data?: unknown }).data = existingWithData.data || compWithData.data;
+          }
+          
+          // Preserve value property if it exists on both components
+          if ('value' in comp && existingComp && 'value' in existingComp) {
+            const compWithValue = comp as { value?: unknown };
+            const existingWithValue = existingComp as { value?: unknown };
+            (updatedComp as { value?: unknown }).value = existingWithValue.value !== undefined ? existingWithValue.value : compWithValue.value;
+          }
+          
+          return updatedComp;
+        });
+        setComponents(componentsWithData);
+        layoutSaveRef.current = componentsWithData;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.component_config]);
 
   const updateReportName = async () => {
     if (!reportName.trim() || reportName === report.name) {

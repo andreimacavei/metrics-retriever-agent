@@ -35,25 +35,26 @@ Available components and their required SQL output format:
    - SQL must return: Rows with columns matching the "columns" array
    - Example SQL: SELECT email, company_size, created_at FROM users ORDER BY created_at DESC LIMIT 100
 
-5. "metrics_grid" - Grid of multiple KPI cards
-   - Each metric needs its own SQL query in the "metrics" array
-   - Each SQL must return: A single row with a "value" column
-
-6. "pie_chart" / "donut_chart" - Circular charts showing proportions
+5. "pie_chart" / "donut_chart" - Circular charts showing proportions
    - SQL must return: Rows with "name" and "value" columns
    - Example SQL: SELECT action as name, COUNT(*) as value FROM events GROUP BY action
 
-7. "area_chart" - Filled area chart
+6. "area_chart" - Filled area chart
    - SQL must return: Rows with "date" and "value" columns, ordered by date
    - Same format as line_chart
 
-8. "scatter_chart" - Scatter plot
+7. "scatter_chart" - Scatter plot
    - SQL must return: Rows with "x" and "y" columns
    - Example SQL: SELECT company_size as x, COUNT(*) as y FROM users GROUP BY company_size
 
-9. "horizontal_bar_chart" - Horizontal bars
+8. "horizontal_bar_chart" - Horizontal bars
    - SQL must return: Rows with "label" and "value" columns
    - Same format as bar_chart
+
+IMPORTANT Layout Guidelines:
+- DO NOT group metrics together - each metric should be its own separate "kpi" component
+- DO NOT use "metrics_grid" - create individual "kpi" components instead
+- Each chart or KPI should be a standalone component that can be resized and moved independently
 
 SQL Query Guidelines:
 - Use only SELECT statements (no INSERT, UPDATE, DELETE, etc.)
